@@ -15,6 +15,7 @@ const getAllTweets = async (req, res) => {
         const tweets = result.records.map(record => record.get('t').properties);
         res.json(tweets);
         session.close();
+        console.log('mostrando 25 tweets en la consola');
     } catch (error) {
         console.error('Error al obtener los tweets:', error);
         res.status(500).json({ error: 'Error al obtener los tweets' });
@@ -241,6 +242,27 @@ const crearTweetComplex = async (req, res) => {
     }
 }
 
+const getTweetSavedbyUserId = async (req, res) => {
+    const userId = req.params.username;
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (u:User { username: $id })-[r:SAVED]->(t:Tweet)<-[p:POST]-(postedBy:User) RETURN t, postedBy.username as author`,
+            { id: userId }
+        );
+        const tweets = result.records.map(record => {
+            const tweet = record.get('t').properties;
+            const author = record.get('author');
+            return { ...tweet, author };
+        });
+        res.json(tweets);
+        session.close();
+    } catch (error) {
+        console.error('Error al obtener los tweets:', error);
+        res.status(500).json({ error: 'Error al obtener los tweets' });
+    }
+}
+
 const getTweetPostedbyUserId = async (req, res) => {
     const userId = req.params.username;
     console.log('ese es el userId');
@@ -262,26 +284,34 @@ const getTweetPostedbyUserId = async (req, res) => {
 
 const getTweetLikedbyUserId = async (req, res) => {
     const username = req.params.username;
+    
     try {
         const session = driver.session();
         const result = await session.run(
-            `MATCH (u:User { username: $id })-[r:LIKE]->(t:Tweet) RETURN t`,
-            { id:username }
+            `MATCH (u:User { username: $id })-[r:LIKE]->(t:Tweet)<-[p:POST]-(postedBy:User) RETURN t, postedBy.username as author`,
+            { id: username }
         );
-        console.log('ese es el result');
-        console.log(result);
 
-        const tweets = result.records.map(record => record.get('t').properties);
+        const tweets = result.records.map(record => {
+            const tweet = record.get('t').properties;
+            const author = record.get('author');
+            return { ...tweet, author };
+        });
+        
         res.json(tweets);
         session.close();
+
     } catch (error) {
         console.error('Error al obtener los tweets:', error);
         res.status(500).json({ error: 'Error al obtener los tweets' });
     }
 }
+
+
 module.exports = {
     getAllTweets,
     crearTweetComplex,
     getTweetPostedbyUserId,
-    getTweetLikedbyUserId
+    getTweetLikedbyUserId,
+    getTweetSavedbyUserId
 };
