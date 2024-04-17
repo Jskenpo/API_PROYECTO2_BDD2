@@ -244,9 +244,9 @@ const crearMencion = async (tweetId, mentions, res) => {
                 await session.run(
                     `MATCH (t:Tweet { id: $tweetId }), (usuario:User { username: $usuarioId })
                     MERGE (t)-[mention:MENTION {
-                        ID: $mentionId,
-                        FECHA: $date,
-                        mentioned_user: $usuarioId,
+                        id: $mentionId,
+                        fecha: $date,
+                        mentioned_user: $usuarioId
                     }]->(usuario)
                     RETURN mention
                     `,
@@ -547,8 +547,7 @@ const getLikesbyTweet = async (req, res) => {
         //retornar el contador de likes
         const likes = result.records[0].get('likes');
 
-
-        res.json(likes.low);
+        res.json({'numero_likes' :likes.low});
         session.close();
     } catch (error) {
         console.error('Error al obtener los likes:', error);
