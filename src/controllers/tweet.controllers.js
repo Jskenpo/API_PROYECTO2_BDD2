@@ -4,6 +4,7 @@ const neo4j = require('neo4j-driver');
 const driver = neo4j.driver('neo4j+s://c129e070.databases.neo4j.io', neo4j.auth.basic('neo4j', '2hke53i8ss-TGNiwVHdyvqjFUI9gFqwH-F0tG8BF-Oo'));
 const { v4: uuidv4 } = require('uuid');
 const { faker } = require('@faker-js/faker');
+const { json } = require('express');
 
 
 
@@ -52,7 +53,7 @@ const CrearTweet = async (tweetId, fecha, autorId, texto, hashtags, links, pais,
         );
 
         await session.run(
-            `MATCH (usuario:User { id: $autorId })
+            `MATCH (usuario:User { username: $autorId })
              MATCH (tweet:Tweet { id: $tweetId })
              MERGE (usuario)-[:POST]->(tweet)`,
             { autorId, tweetId }
@@ -128,7 +129,7 @@ const crearHashtag = async (tweetId, hashtags, res) => {
                 await session.run(
                     `MATCH (t:Tweet { id: $tweetId })
                     MATCH (hashtag:Hashtag { name: $nombreHashtag })
-                    MERGE (t)-[:HASHTAG]->(hashtag)`,
+                    MERGE (t)-[:TAG]->(hashtag)`,
                     { tweetId, nombreHashtag }
                 );
             } finally {
@@ -314,7 +315,7 @@ const getTweetLikedbyUserId = async (req, res) => {
 
 
 const createRT = async ( req, res) => {
-    const { autorId, texto, hashtags, links, pais, mentions, RTId } = req.body;
+    const { autorId, texto, hashtags, links, pais, mentions, RTId, RT_mention } = req.body;
     const tweetId = uuidv4();
     const fecha = new Date().toISOString();
     try {
@@ -333,12 +334,30 @@ const createRT = async ( req, res) => {
         }
 
         await RTRelation(RTId, tweetId, res);
+        await RTMention(RTId, RT_mention, res);
 
         console.log('Retweet creado correctamente');
+        res.status(200).json({ message: 'Retweet creado correctamente' });
         
     } catch (error) {
         console.error('Error al retweetear:', error);
         res.status(500).json({ error: 'Ocurrió un error al retweetear' });
+    }
+}
+
+const RTMention = async (RTId, RT_mention, res) => {
+    const session = driver.session();
+    try {
+        await session.run(
+            `MATCH (rt:Tweet { id: $RTId })
+            MATCH (mention:User { username: $RT_mention })
+            MERGE (rt)-[:RT_MENTION]->(mention)`,
+            { RTId, RT_mention }
+        );
+        session.close();
+    } catch (error) {
+        console.error('Error al crear la mención de retweet:', error);
+        res.status(500).json({ error: 'Ocurrió un error al crear la mención de retweet' });
     }
 }
 
@@ -348,7 +367,7 @@ const RTRelation = async (RTId, tweetId, res) => {
         await session.run(
             `MATCH (t:Tweet { id: $tweetId })
             MATCH (rt:Tweet { id: $RTId })
-            MERGE (t)-[:RETWEET]->(rt)`,
+            MERGE (t)-[:RT]->(rt)`,
             { tweetId, RTId }
         );
         session.close();
@@ -362,7 +381,6 @@ const createReply = async (req, res) => {
     const { autorId, texto, hashtags, links, pais, mentions, replyId } = req.body;
     const tweetId = uuidv4();
     const fecha = new Date().toISOString();
-    const session = driver.session();
     try {
         await CrearTweet(tweetId, fecha, autorId, texto, hashtags, links, pais, mentions, res);
         if (hashtags.length > 0) {
@@ -381,6 +399,8 @@ const createReply = async (req, res) => {
         await ReplyRelation(replyId, tweetId, res);
 
         console.log('Respuesta creada correctamente');
+
+        res.status(200).json({ message: 'Respuesta creada correctamente' });
         
     } catch (error) {
         console.error('Error al responder:', error);
@@ -404,7 +424,6 @@ const ReplyRelation = async (replyId, tweetId, res) => {
     }
 }
 
-
 const getTweetbyId = async (req, res) => {
     const tweetId = req.body.id;
     const session = driver.session();
@@ -421,6 +440,48 @@ const getTweetbyId = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener los tweets' });
     }
 };
+
+const getRepliesbyId = async (req, res) => {
+    const tweetId = req.body.id;
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (originalTweet:Tweet {id: $tweetId})<-[:REPLY]-(reply:Tweet)<-[:POST]-(replyAuthor:User) RETURN originalTweet, reply, replyAuthor.username as author`,
+            { tweetId }
+        );
+        const replies = result.records.map(record => {
+            const tweet = record.get('reply').properties;
+            const author = record.get('author');
+            return { ...tweet, author };
+        });
+        res.json(replies);
+        session.close();
+    } catch (error) {
+        console.error('Error al obtener las respuestas:', error);
+        res.status(500).json({ error: 'Error al obtener las respuestas' });
+    }
+};
+const getLikesbyTweet = async (req, res) => {
+    const tweetId = req.body.id;
+    const session = driver.session();
+    try {
+        //contador de cuantas relaciones de LIKE tiene el tweet
+        const result = await session.run(
+            `MATCH (t:Tweet { id: $tweetId })<-[l:LIKE]-(u:User) RETURN COUNT(l) as likes`,
+            { tweetId }
+        );
+
+        //retornar el contador de likes
+        const likes = result.records[0].get('likes');
+
+
+        res.json(likes.low);
+        session.close();
+    } catch (error) {
+        console.error('Error al obtener los likes:', error);
+        res.status(500).json({ error: 'Error al obtener los likes' });
+    }
+};
 module.exports = {
     getAllTweets,
     crearTweetComplex,
@@ -429,5 +490,7 @@ module.exports = {
     getTweetSavedbyUserId,
     createRT,
     createReply,
-    getTweetbyId
+    getTweetbyId,
+    getRepliesbyId,
+    getLikesbyTweet
 };

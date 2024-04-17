@@ -42,7 +42,6 @@ const VerifyUserFunction = async (username, password) => {
     }
 }
 
-
 const verifyUser = async (req, res) => {
     const session = driver.session();
     const { username, password} = req.body;
@@ -63,7 +62,22 @@ const verifyUser = async (req, res) => {
     }
 }
 
+const updateUsername = async (req, res) => {
+    const session = driver.session();
+    const { username, new_username } = req.body;
+    const query = `MATCH (u:User {username: $username}) SET u.username = $new_username RETURN u`;
+    try {
+        await session.run(query, { username, new_username });
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ error: error.message });
+    } finally {
+        await session.close();
+    }
+}
+
 module.exports = {
     createUser,
-    verifyUser
+    verifyUser,
+    updateUsername
 }

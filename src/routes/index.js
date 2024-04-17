@@ -1,25 +1,33 @@
 const { Router } = require('express');
 const router = Router();
 
-const { getAllTweets, crearTweetComplex, getTweetLikedbyUserId, getTweetPostedbyUserId, getTweetSavedbyUserId, createRT, getTweetbyId } = require('../controllers/tweet.controllers');
-const { createUser, verifyUser } = require('../controllers/user.controllers');
+const { getAllTweets, crearTweetComplex, getTweetLikedbyUserId, getTweetPostedbyUserId, getTweetSavedbyUserId, createRT, getTweetbyId, createReply, getRepliesbyId, getLikesbyTweet } = require('../controllers/tweet.controllers');
+const { createUser, verifyUser, updateUsername } = require('../controllers/user.controllers');
 
 console.log('index.js se está cargando');
 
-//GET 
+//READ 
 router.get('/tweets', getAllTweets);
 
-//GET BY ID 
+//READ BY ID 
 router.get('/tweets/posted/:username', getTweetPostedbyUserId);
 router.get('/tweets/liked/:username', getTweetLikedbyUserId);
 router.get('/tweets/saved/:username', getTweetSavedbyUserId);
+router.post('/tweets/replies', getRepliesbyId);
+router.post('/tweets/likes', getLikesbyTweet);
+router.post('/users/verify', verifyUser);
 
 
-//POST
+
+
+//CREATE
 router.post('/tweets', crearTweetComplex);
 router.post('/users', createUser);
-router.post('/users/verify', verifyUser);
 router.post('/tweets/rt', createRT);
+router.post('/tweets/reply', createReply);
+
+//UPDATE
+router.post('/users/updateUsername', updateUsername);
 
 //GET BY ID
 router.post('/tweets/single', getTweetbyId);
