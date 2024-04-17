@@ -15,7 +15,11 @@ const getAllTweets = async (req, res) => {
         const result = await session.run('MATCH (t:Tweet)<-[p:POST]-(postedBy:User) WHERE NOT EXISTS(()-[:REPLY]->(t)) RETURN t, postedBy.username AS author LIMIT 25 ');
         const tweets = result.records.map(record => {
             const tweet = record.get('t').properties;
-            const author = record.get('author');
+            let author = record.get('author');
+
+            if (author===null){
+                author = 'Anónimo';
+            }
             return { ...tweet, author };
         });
         
@@ -258,7 +262,10 @@ const getTweetSavedbyUserId = async (req, res) => {
         );
         const tweets = result.records.map(record => {
             const tweet = record.get('t').properties;
-            const author = record.get('author');
+            let author = record.get('author');
+            if (author===null){
+                author = 'Anónimo';
+            }
             return { ...tweet, author };
         });
         res.json(tweets);
@@ -300,7 +307,10 @@ const getTweetLikedbyUserId = async (req, res) => {
 
         const tweets = result.records.map(record => {
             const tweet = record.get('t').properties;
-            const author = record.get('author');
+            let author = record.get('author');
+            if (author===null){
+                author = 'Anónimo';
+            }
             return { ...tweet, author };
         });
         
@@ -450,7 +460,11 @@ const getRepliesbyId = async (req, res) => {
         );
         const replies = result.records.map(record => {
             const tweet = record.get('reply').properties;
-            const author = record.get('author');
+            let  author = record.get('author');
+
+            if (author===null){
+                author = 'Anónimo';
+            }
             return { ...tweet, author };
         });
         res.json(replies);
@@ -494,7 +508,10 @@ const searchTweetbyText = async (req, res) => {
         );
         const tweets = result.records.map(record => {
             const Tweet =record.get('t').properties;
-            const author = record.get('author');
+            let author = record.get('author');
+            if (author===null){
+                author = 'Anónimo';
+            }
             return { ...Tweet, author };
         });
 
@@ -505,6 +522,40 @@ const searchTweetbyText = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener los tweets' });
     }
 };
+
+const deleteTweet = async (req, res) => {
+    const tweetId = req.body.id;
+    const session = driver.session();
+    try {
+        await session.run(
+            `MATCH (t:Tweet { id: $tweetId }) DETACH DELETE t`,
+            { tweetId }
+        );
+        res.json({ success: true });
+        session.close();
+    } catch (error) {
+        console.error('Error al eliminar el tweet:', error);
+        res.status(500).json({ error: 'Error al eliminar el tweet' });
+    }
+};
+
+const editarTweet = async (req, res) => {
+    const tweetId = req.body.id;
+    const newText = req.body.texto;
+    const session = driver.session();
+    try {
+        await session.run(
+            `MATCH (t:Tweet { id: $tweetId }) SET t.texto = $newText`,
+            { tweetId, newText }
+        );
+        res.json({ success: true });
+        session.close();
+    } catch (error) {
+        console.error('Error al editar el tweet:', error);
+        res.status(500).json({ error: 'Error al editar el tweet' });
+    }
+};
+
 module.exports = {
     getAllTweets,
     crearTweetComplex,
@@ -516,5 +567,7 @@ module.exports = {
     getTweetbyId,
     getRepliesbyId,
     getLikesbyTweet,
-    searchTweetbyText
+    searchTweetbyText,
+    deleteTweet,
+    editarTweet
 };

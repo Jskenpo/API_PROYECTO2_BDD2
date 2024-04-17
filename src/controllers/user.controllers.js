@@ -132,6 +132,54 @@ const userQuitSave = async (req, res) => {
     }
 }
 
+
+const deleteUserComplex = async (req, res) => {
+    const session = driver.session();
+    const { username } = req.body;
+    try {
+        await deleteUserTweets(username);
+        await deleteUser(username);
+        res.status(200).json({ success: true });
+        
+    }catch (error) {
+        console.log('Error al eliminar usuario',error);
+        res.status(500).json({ error: error.message });
+        
+    }finally {
+        await session.close();
+    }
+    
+}
+
+const deleteUser = async (username) => {
+    const session = driver.session();
+    const query = `MATCH (u:User {username: $username}) DETACH DELETE u`;
+    try {
+        await session.run(query, { username });
+        return { success: true };
+    } catch (error) {
+        return { error: error.message };
+    } finally {
+        await session.close();
+    }
+}
+
+const deleteUserTweets = async (username) => {
+    const session = driver.session();
+    const query = `MATCH (u:User {username: $username})-[r:POSTED]->(t:Tweet) DETACH DELETE t`;
+    try {
+        await session.run(query, { username });
+        return { success: true };
+    } catch (error) {
+        return { error: error.message };
+    } finally {
+        await session.close();
+    }
+}
+
+
+
+
 module.exports = {
     createUser,
     verifyUser,
@@ -139,5 +187,6 @@ module.exports = {
     userLikesTweet,
     userSavesTweet,
     userQuitLike,
-    userQuitSave
+    userQuitSave,
+    deleteUserComplex
 }

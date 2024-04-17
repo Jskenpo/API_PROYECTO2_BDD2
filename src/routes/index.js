@@ -1,8 +1,8 @@
 const { Router } = require('express');
 const router = Router();
 
-const { getAllTweets, crearTweetComplex, getTweetLikedbyUserId, getTweetPostedbyUserId, getTweetSavedbyUserId, createRT, getTweetbyId, createReply, getRepliesbyId, getLikesbyTweet, searchTweetbyText } = require('../controllers/tweet.controllers');
-const { createUser, verifyUser, updateUsername, userLikesTweet, userSavesTweet } = require('../controllers/user.controllers');
+const { getAllTweets, crearTweetComplex, getTweetLikedbyUserId, getTweetPostedbyUserId, getTweetSavedbyUserId, createRT, getTweetbyId, createReply, getRepliesbyId, getLikesbyTweet, searchTweetbyText, deleteTweet } = require('../controllers/tweet.controllers');
+const { createUser, verifyUser, updateUsername, userLikesTweet, userSavesTweet, deleteUserComplex } = require('../controllers/user.controllers');
 
 console.log('index.js se está cargando');
 
@@ -29,6 +29,10 @@ router.post('/users/save', userSavesTweet);
 
 //UPDATE
 router.post('/users/updateUsername', updateUsername);
+
+//DELETE
+router.post('/tweets/delete', deleteTweet);
+router.post('/users/delete', deleteUserComplex);
 
 //GET BY ID
 router.post('/tweets/single', getTweetbyId);
