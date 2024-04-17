@@ -2,6 +2,7 @@ const { Router } = require('express');
 const router = Router();
 
 const { getAllTweets, crearTweetComplex, getTweetLikedbyUserId, getTweetPostedbyUserId, getTweetSavedbyUserId } = require('../controllers/tweet.controllers');
+const { createUser, verifyUser } = require('../controllers/user.controllers');
 
 console.log('index.js se está cargando');
 
@@ -16,5 +17,7 @@ router.get('/tweets/saved/:username', getTweetSavedbyUserId);
 
 //POST
 router.post('/tweets', crearTweetComplex);
+router.post('/users', createUser);
+router.post('/users/verify', verifyUser);
 
 module.exports = router;
