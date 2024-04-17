@@ -5,9 +5,9 @@ const { faker } = require('@faker-js/faker');
 
 
 const createUser = async (req, res) => {
-    const { username, email, password, date_of_birth, real_name, verificado} = req.body;
+    const { username, email, password, date_of_birth, real_name, verificado } = req.body;
     existe = await VerifyUserFunction(username, password);
-    
+
     if (existe) {
         res.json({ error: "Usuario ya existe" });
     } else {
@@ -44,7 +44,7 @@ const VerifyUserFunction = async (username, password) => {
 
 const verifyUser = async (req, res) => {
     const session = driver.session();
-    const { username, password} = req.body;
+    const { username, password } = req.body;
     const query = `MATCH (u:User {username: $username, password: $password}) RETURN u`;
     try {
         const result = await session.run(query, { username, password });
@@ -79,9 +79,17 @@ const updateUsername = async (req, res) => {
 const userLikesTweet = async (req, res) => {
     const session = driver.session();
     const { username, tweet_id } = req.body;
-    const query = `MATCH (u:User {username: $username}), (t:Tweet {id: $tweet_id}) CREATE (u)-[:LIKES]->(t)`;
+    const likeId = uuidv4();
+    const date = new Date().toISOString();
+    const query = `MATCH (u:User {username: $username}), (t:Tweet {id: $tweet_id})
+                    CREATE (u)-[l:LIKES {
+                    is: $likeId,
+                    username_like: $username,
+                    fecha: $date
+                }]->(t)
+    RETURN l`;
     try {
-        await session.run(query, { username, tweet_id });
+        await session.run(query, { username, tweet_id, likeId, date });
         res.json({ success: true });
     } catch (error) {
         res.json({ error: error.message });
@@ -93,9 +101,17 @@ const userLikesTweet = async (req, res) => {
 const userSavesTweet = async (req, res) => {
     const session = driver.session();
     const { username, tweet_id } = req.body;
-    const query = `MATCH (u:User {username: $username}), (t:Tweet {id: $tweet_id}) CREATE (u)-[:SAVED]->(t)`;
+    const savedId = uuidv4();
+    const date = new Date().toISOString();
+    const query = `MATCH (u:User {username: $username}), (t:Tweet {id: $tweet_id})
+                    CREATE (u)-[s:SAVED {
+                        ID: $savedId,
+                        FECHA: $date,
+                        username_saved: $username
+                    }]->(t)
+                    RETURN s`;
     try {
-        await session.run(query, { username, tweet_id });
+        await session.run(query, { username, tweet_id, savedId, date});
         res.json({ success: true });
     } catch (error) {
         res.json({ error: error.message });
@@ -140,15 +156,15 @@ const deleteUserComplex = async (req, res) => {
         await deleteUserTweets(username);
         await deleteUser(username);
         res.status(200).json({ success: true });
-        
-    }catch (error) {
-        console.log('Error al eliminar usuario',error);
+
+    } catch (error) {
+        console.log('Error al eliminar usuario', error);
         res.status(500).json({ error: error.message });
-        
-    }finally {
+
+    } finally {
         await session.close();
     }
-    
+
 }
 
 const deleteUser = async (username) => {

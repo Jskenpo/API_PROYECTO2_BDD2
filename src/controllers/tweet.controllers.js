@@ -4,7 +4,7 @@ const neo4j = require('neo4j-driver');
 const driver = neo4j.driver('neo4j+s://c129e070.databases.neo4j.io', neo4j.auth.basic('neo4j', '2hke53i8ss-TGNiwVHdyvqjFUI9gFqwH-F0tG8BF-Oo'));
 const { v4: uuidv4 } = require('uuid');
 const { faker } = require('@faker-js/faker');
-const { json } = require('express');
+
 
 
 
@@ -56,11 +56,19 @@ const CrearTweet = async (tweetId, fecha, autorId, texto, hashtags, links, pais,
             }
         );
 
+        const postId = uuidv4();
+        const date  = new Date().toISOString();
+
         await session.run(
-            `MATCH (usuario:User { username: $autorId })
-             MATCH (tweet:Tweet { id: $tweetId })
-             MERGE (usuario)-[:POST]->(tweet)`,
-            { autorId, tweetId }
+            `MATCH (usuario:User { username: $autorId }), (tweet:Tweet { id: $tweetId })
+            MERGE (usuario)-[postRelation:POST {
+                id: $postId,
+                fecha: $date,
+                posted_by: $autorId
+            }]->(tweet)
+            RETURN postRelation
+            `,
+            { autorId, tweetId, postId, date}
         );
 
         session.close();
@@ -76,6 +84,7 @@ const crearUbi = async (tweetId, pais, res) => {
     const session = driver.session();
     try {
         ubicacionId = uuidv4();
+        
         await session.run(
             `CREATE (ubicacion:Ubicacion {
                 pais: $pais,
@@ -92,12 +101,20 @@ const crearUbi = async (tweetId, pais, res) => {
                 ubicacionId
             }
         );
-
+        
+        const seUbicaId = uuidv4();
+        const validacion = faker.datatype.boolean();
+        const date  = new Date().toISOString();
         await session.run(
-            `MATCH (tweet:Tweet { id: $tweetId })
-            MATCH (ubicacion:Ubicacion { id: $ubicacionId })
-            MERGE (tweet)-[:SE_UBICA]->(ubicacion)`,
-            { tweetId, ubicacionId }
+            `MATCH (tweet:Tweet { id: $tweetId }), (ubicacion:Ubicacion { id: $ubicacionId })
+            MERGE (tweet)-[seUbica:SE_UBICA {
+                id: $seUbicaId,
+                fecha: $date,
+                validacion: $validacion
+            }]->(ubicacion)
+            RETURN seUbica
+            `,
+            { tweetId, ubicacionId, seUbicaId, validacion, date}
         );
         session.close();
 
@@ -114,6 +131,8 @@ const crearHashtag = async (tweetId, hashtags, res) => {
     try {
         await Promise.all(hashtags.map(async (nombreHashtag) => {
             const session = driver.session();
+            const tagId = uuidv4();
+            const date = new Date().toISOString();
             try {
                 await session.run(
                     `MERGE (hashtag:Hashtag { name: $nombreHashtag })
@@ -131,10 +150,15 @@ const crearHashtag = async (tweetId, hashtags, res) => {
                 );
 
                 await session.run(
-                    `MATCH (t:Tweet { id: $tweetId })
-                    MATCH (hashtag:Hashtag { name: $nombreHashtag })
-                    MERGE (t)-[:TAG]->(hashtag)`,
-                    { tweetId, nombreHashtag }
+                    `MATCH (t:Tweet { id: $tweetId }), (hashtag:Hashtag { name: $nombreHashtag })
+                    MERGE (t)-[tag:TAG {
+                        id: $tagId,
+                        fecha: $date,
+                        tweet_tagged: $tweetId
+                    }]->(hashtag)
+                    RETURN tag
+                    `,
+                    { tweetId, nombreHashtag, tagId, date}
                 );
             } finally {
                 session.close();
@@ -151,6 +175,8 @@ const crearLink = async (tweetId, links, res) => {
     try {
         await Promise.all(links.map(async (url) => {
             const session = driver.session();
+            const linkId = uuidv4();
+            const date  = new Date().toISOString();
             try {
                 const terminacion = url.split('.').pop();
                 const protocolo = url.startsWith('https') ? 'https' : 'http';
@@ -171,10 +197,15 @@ const crearLink = async (tweetId, links, res) => {
                 );
 
                 await session.run(
-                    `MATCH (t:Tweet { id: $tweetId })
-                        MATCH (link:Link { url: $url })
-                        MERGE (t)-[:CONTIENE]->(link)`,
-                    { tweetId, url }
+                        `MATCH (t:Tweet { id: $tweetId }), (link:Link { url: $url })
+                        MERGE (t)-[contiene:CONTIENE {
+                            id: $contieneId,
+                            fecha: $date,
+                            validacion: $validacion
+                        }]->(link)
+                        RETURN contiene
+                        `,
+                    { tweetId, url, contieneId: linkId, validacion: faker.datatype.boolean(), date}
                 );
 
             } finally {
@@ -207,12 +238,19 @@ const crearMencion = async (tweetId, mentions, res) => {
         }));
         await Promise.all(mentions.map(async (usuarioId) => {
             const session = driver.session();
+            const mentionId = uuidv4();
+            const date = new Date().toISOString();
             try {
                 await session.run(
-                    `MATCH (t:Tweet { id: $tweetId })
-                    MATCH (usuario:User { username: $usuarioId })
-                    MERGE (t)-[:MENTION]->(usuario)`,
-                    { tweetId, usuarioId }
+                    `MATCH (t:Tweet { id: $tweetId }), (usuario:User { username: $usuarioId })
+                    MERGE (t)-[mention:MENTION {
+                        ID: $mentionId,
+                        FECHA: $date,
+                        mentioned_user: $usuarioId,
+                    }]->(usuario)
+                    RETURN mention
+                    `,
+                    { tweetId, usuarioId, mentionId, date}
                 );
             } finally {
                 session.close();
@@ -356,12 +394,19 @@ const createRT = async ( req, res) => {
 
 const RTMention = async (RTId, RT_mention, res) => {
     const session = driver.session();
+    const date = new Date().toISOString();
+    const rtMentionId = uuidv4();
     try {
         await session.run(
-            `MATCH (rt:Tweet { id: $RTId })
-            MATCH (mention:User { username: $RT_mention })
-            MERGE (rt)-[:RT_MENTION]->(mention)`,
-            { RTId, RT_mention }
+            `MATCH (rt:Tweet { id: $RTId }), (mention:User { username: $RT_mention })
+            MERGE (rt)-[rtMention:RT_MENTION {
+                id: $rtMentionId,
+                fecha: $date,
+                mentioned_username: $RT_mention
+            }]->(mention)
+            RETURN rtMention
+            `,
+            { RTId, RT_mention, rtMentionId, date}
         );
         session.close();
     } catch (error) {
@@ -372,12 +417,20 @@ const RTMention = async (RTId, RT_mention, res) => {
 
 const RTRelation = async (RTId, tweetId, res) => {
     const session = driver.session();
+    const motivo = faker.lorem.sentence();
+    const retweetId = uuidv4();
+    const date = new Date().toISOString();
     try {
         await session.run(
-            `MATCH (t:Tweet { id: $tweetId })
-            MATCH (rt:Tweet { id: $RTId })
-            MERGE (t)-[:RT]->(rt)`,
-            { tweetId, RTId }
+            `MATCH (t:Tweet { id: $tweetId }), (rt:Tweet { id: $RTId })
+            MERGE (t)-[retweet:RT {
+                id: $retweetId,
+                fecha: $date,
+                motivo: $motivo
+            }]->(rt)
+            RETURN retweet
+            `,
+            { tweetId, RTId, retweetId, motivo, date}
         );
         session.close();
     } catch (error) {
@@ -419,12 +472,18 @@ const createReply = async (req, res) => {
 
 const ReplyRelation = async (replyId, tweetId, res) => {
     const session = driver.session();
+    const date = new Date().toISOString();
+    const RelationReplyId = uuidv4();
     try {
         await session.run(
-            `MATCH (t:Tweet { id: $tweetId })
-            MATCH (reply:Tweet { id: $replyId })
-            MERGE (t)-[:REPLY]->(reply)`,
-            { tweetId, replyId }
+            `MATCH (t:Tweet { id: $tweetId }), (reply:Tweet { id: $replyId })
+            MERGE (t)-[replyRelation:REPLY {
+                id: $RelationReplyId,
+                fecha: $date,
+                replied_tweet: $tweetId
+            }]->(reply)
+            RETURN replyRelation`,
+            { tweetId, replyId, date, RelationReplyId }
         );
         session.close();
     } catch (error) {
