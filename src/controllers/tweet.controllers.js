@@ -313,7 +313,6 @@ const getTweetLikedbyUserId = async (req, res) => {
     }
 }
 
-
 const createRT = async ( req, res) => {
     const { autorId, texto, hashtags, links, pais, mentions, RTId, RT_mention } = req.body;
     const tweetId = uuidv4();
@@ -461,6 +460,7 @@ const getRepliesbyId = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener las respuestas' });
     }
 };
+
 const getLikesbyTweet = async (req, res) => {
     const tweetId = req.body.id;
     const session = driver.session();
@@ -482,6 +482,29 @@ const getLikesbyTweet = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener los likes' });
     }
 };
+
+const searchTweetbyText = async (req, res) => {
+    const text = req.body.texto;
+    const session = driver.session();
+    try {
+        //hacer match con nombre de usuario 
+        const result = await session.run(
+            `MATCH (t:Tweet) <-[:POST]-(replyAuthor:User) WHERE t.texto CONTAINS $text RETURN t, replyAuthor.username as author`,
+            { text }
+        );
+        const tweets = result.records.map(record => {
+            const Tweet =record.get('t').properties;
+            const author = record.get('author');
+            return { ...Tweet, author };
+        });
+
+        res.json(tweets);
+        session.close();
+    } catch (error) {
+        console.error('Error al obtener los tweets:', error);
+        res.status(500).json({ error: 'Error al obtener los tweets' });
+    }
+};
 module.exports = {
     getAllTweets,
     crearTweetComplex,
@@ -492,5 +515,6 @@ module.exports = {
     createReply,
     getTweetbyId,
     getRepliesbyId,
-    getLikesbyTweet
+    getLikesbyTweet,
+    searchTweetbyText
 };

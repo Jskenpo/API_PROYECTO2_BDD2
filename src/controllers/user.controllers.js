@@ -76,8 +76,66 @@ const updateUsername = async (req, res) => {
     }
 }
 
+const userLikesTweet = async (req, res) => {
+    const session = driver.session();
+    const { username, tweet_id } = req.body;
+    const query = `MATCH (u:User {username: $username}), (t:Tweet {id: $tweet_id}) CREATE (u)-[:LIKES]->(t)`;
+    try {
+        await session.run(query, { username, tweet_id });
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ error: error.message });
+    } finally {
+        await session.close();
+    }
+}
+
+const userSavesTweet = async (req, res) => {
+    const session = driver.session();
+    const { username, tweet_id } = req.body;
+    const query = `MATCH (u:User {username: $username}), (t:Tweet {id: $tweet_id}) CREATE (u)-[:SAVED]->(t)`;
+    try {
+        await session.run(query, { username, tweet_id });
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ error: error.message });
+    } finally {
+        await session.close();
+    }
+}
+
+const userQuitLike = async (req, res) => {
+    const session = driver.session();
+    const { username, tweet_id } = req.body;
+    const query = `MATCH (u:User {username: $username})-[r:LIKES]->(t:Tweet {id: $tweet_id}) DELETE r`;
+    try {
+        await session.run(query, { username, tweet_id });
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ error: error.message });
+    } finally {
+        await session.close();
+    }
+}
+
+const userQuitSave = async (req, res) => {
+    const session = driver.session();
+    const { username, tweet_id } = req.body;
+    const query = `MATCH (u:User {username: $username})-[r:SAVED]->(t:Tweet {id: $tweet_id}) DELETE r`;
+    try {
+        await session.run(query, { username, tweet_id });
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ error: error.message });
+    } finally {
+        await session.close();
+    }
+}
+
 module.exports = {
     createUser,
     verifyUser,
-    updateUsername
+    updateUsername,
+    userLikesTweet,
+    userSavesTweet
 }
