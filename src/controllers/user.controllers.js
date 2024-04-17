@@ -193,6 +193,25 @@ const deleteUserTweets = async (username) => {
     }
 }
 
+const verifyLikeFromUser = async (req, res) => {
+    const session = driver.session();
+    const {username, tweetId} = req.body;
+    const query = `MATCH (u:User {username: $username})-[r:LIKE]->(t:Tweet {id: $tweetId}) RETURN r`;
+    try {
+        const result = await session.run(query, { username, tweetId });
+        let verified = false;
+        if (result.records.length > 0) {
+            verified = true;
+        } 
+
+        res.json({ success: verified });
+    } catch (error) {
+        res.json({ error: error.message });
+        console.log(error);
+    } finally {
+        await session.close();
+    }
+}
 
 
 
@@ -204,5 +223,6 @@ module.exports = {
     userSavesTweet,
     userQuitLike,
     userQuitSave,
-    deleteUserComplex
+    deleteUserComplex,
+    verifyLikeFromUser
 }
