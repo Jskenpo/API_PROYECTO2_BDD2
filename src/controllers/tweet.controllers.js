@@ -136,37 +136,37 @@ const crearHashtag = async (tweetId, hashtags, res) => {
 }
 
 const crearLink = async (tweetId, links, res) => {
-    
+
     try {
         await Promise.all(links.map(async (url) => {
             const session = driver.session();
-            try{
+            try {
                 const terminacion = url.split('.').pop();
                 const protocolo = url.startsWith('https') ? 'https' : 'http';
-    
+
                 await session.run(
                     `MERGE (link:Link { url: $url })
                     ON CREATE SET link.https = $https,
                                     link.terminacion = $terminacion,
                                     link.topic = $topic,
                                     link.id = $linkId`,
-                        {
-                            url,
-                            https: protocolo === 'https',
-                            terminacion,
-                            topic: faker.lorem.word(),
-                            linkId: uuidv4()
-                        }
-                    );
-    
-                    await session.run(
-                        `MATCH (t:Tweet { id: $tweetId })
+                    {
+                        url,
+                        https: protocolo === 'https',
+                        terminacion,
+                        topic: faker.lorem.word(),
+                        linkId: uuidv4()
+                    }
+                );
+
+                await session.run(
+                    `MATCH (t:Tweet { id: $tweetId })
                         MATCH (link:Link { url: $url })
                         MERGE (t)-[:CONTIENE]->(link)`,
-                        { tweetId, url }
-                    );
+                    { tweetId, url }
+                );
 
-            }finally{
+            } finally {
                 session.close();
             }
         }));
@@ -213,7 +213,6 @@ const crearMencion = async (tweetId, mentions, res) => {
     }
 }
 
-
 // Función para crear un tweet
 const crearTweetComplex = async (req, res) => {
     const { autorId, texto, hashtags, links, pais, mentions } = req.body;
@@ -242,7 +241,47 @@ const crearTweetComplex = async (req, res) => {
     }
 }
 
+const getTweetPostedbyUserId = async (req, res) => {
+    const userId = req.params.username;
+    console.log('ese es el userId');
+    console.log(userId);
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (u:User { username: $id })-[r:POST]->(t:Tweet) RETURN t`,
+            { id:userId }
+        );
+        const tweets = result.records.map(record => record.get('t').properties);
+        res.json(tweets);
+        session.close();
+    } catch (error) {
+        console.error('Error al obtener los tweets:', error);
+        res.status(500).json({ error: 'Error al obtener los tweets' });
+    }
+};
+
+const getTweetLikedbyUserId = async (req, res) => {
+    const username = req.params.username;
+    try {
+        const session = driver.session();
+        const result = await session.run(
+            `MATCH (u:User { username: $id })-[r:LIKE]->(t:Tweet) RETURN t`,
+            { id:username }
+        );
+        console.log('ese es el result');
+        console.log(result);
+
+        const tweets = result.records.map(record => record.get('t').properties);
+        res.json(tweets);
+        session.close();
+    } catch (error) {
+        console.error('Error al obtener los tweets:', error);
+        res.status(500).json({ error: 'Error al obtener los tweets' });
+    }
+}
 module.exports = {
     getAllTweets,
-    crearTweetComplex
+    crearTweetComplex,
+    getTweetPostedbyUserId,
+    getTweetLikedbyUserId
 };

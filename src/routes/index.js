@@ -1,10 +1,14 @@
 const { Router } = require('express');
 const router = Router();
 
-const { getAllTweets, crearTweetComplex } = require('../controllers/tweet.controllers');
+const { getAllTweets, crearTweetComplex, getTweetLikedbyUserId, getTweetPostedbyUserId } = require('../controllers/tweet.controllers');
 
 //GET 
 router.get('/tweets', getAllTweets);
+
+//GET BY ID 
+router.get('/tweets/posted/:username', getTweetPostedbyUserId);
+router.get('/tweets/liked/:username', getTweetLikedbyUserId);
 
 
 //POST
