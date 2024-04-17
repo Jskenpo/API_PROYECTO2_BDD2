@@ -5,17 +5,38 @@ const { faker } = require('@faker-js/faker');
 
 
 const createUser = async (req, res) => {
-    const session = driver.session();
     const { username, email, password, date_of_birth, real_name, verificado} = req.body;
-    const id = uuidv4();
-    const query = `CREATE (u:User {id: $id, username: $username, email: $email, password: $password, date_of_birth: $date_of_birth, real_name: $real_name, verificado: $verificado}) RETURN u`;
+    existe = await VerifyUserFunction(username, password);
+    
+    if (existe) {
+        res.json({ error: "Usuario ya existe" });
+    } else {
+        const session = driver.session();
+        const query = `CREATE (u:User {id: $id, username: $username, email: $email, password: $password, date_of_birth: $date_of_birth, real_name: $real_name, verificado: $verificado}) RETURN u`;
+        try {
+            const result = await session.run(query, { id: uuidv4(), username, email, password, date_of_birth, real_name, verificado });
+            res.json({ success: true });
+        } catch (error) {
+            res.json({ error: error.message });
+        } finally {
+            await session.close();
+        }
+    }
+}
+
+const VerifyUserFunction = async (username, password) => {
+    const session = driver.session();
+    const query = `MATCH (u:User {username: $username, password: $password}) RETURN u`;
     try {
-        const result = await session.run(query, { id, username, email, password, date_of_birth, real_name, verificado });
-        res.json(result.records[0]._fields[0].properties);
+        const result = await session.run(query, { username, password });
+        if (result.records.length > 0) {
+            return true;
+        } else {
+            return false;
+        }
         session.close();
-        console.log('Usuario creado');
     } catch (error) {
-        res.json({ error: error.message });
+        return false;
     } finally {
         await session.close();
     }
