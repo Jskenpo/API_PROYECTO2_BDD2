@@ -11,8 +11,13 @@ const { faker } = require('@faker-js/faker');
 const getAllTweets = async (req, res) => {
     const session = driver.session();
     try {
-        const result = await session.run('MATCH (t:Tweet) RETURN t LIMIT 25');
-        const tweets = result.records.map(record => record.get('t').properties);
+        const result = await session.run('MATCH (t:Tweet)<-[p:POST]-(postedBy:User) RETURN t, postedBy.username as author LIMIT 25');
+        const tweets = result.records.map(record => {
+            const tweet = record.get('t').properties;
+            const author = record.get('author');
+            return { ...tweet, author };
+        });
+        
         res.json(tweets);
         session.close();
         console.log('mostrando 25 tweets en la consola');
