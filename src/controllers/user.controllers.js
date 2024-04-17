@@ -137,5 +137,7 @@ module.exports = {
     verifyUser,
     updateUsername,
     userLikesTweet,
-    userSavesTweet
+    userSavesTweet,
+    userQuitLike,
+    userQuitSave
 }
